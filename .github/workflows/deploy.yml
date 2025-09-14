@@ -3,6 +3,11 @@ name: Deploy Vue to EC2 (manual)
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: 'version'
+        required: false
+        default: 'latest'
+        type: string
       command:
         description: 'deploy or restart'
         required: true
@@ -31,6 +36,7 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_HUB_USERNAME }}/vue-deploy:latest
   deploy:
+    if: ${{ github.event.inputs.command == 'deploy' }}
     needs: build
     runs-on: self-hosted
     steps:
@@ -39,13 +45,14 @@ jobs:
           docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/vue-deploy:latest
       - name: run docker container
         run: |
-          if [ "${{ github.event.inputs.command }}" = "deploy" ]; then
-            docker stop vue-deploy || true
-            docker rm vue-deploy || true
-            docker run -d --name vue-deploy -p 4173:4173 ${{ secrets.DOCKER_HUB_USERNAME }}/vue-deploy:latest
-          elif [ "${{ github.event.inputs.command }}" = "restart" ]; then
-            docker restart vue-deploy || true
-          else
-            echo "Unknown command: ${{ github.event.inputs.command }}"
-            exit 1
-          fi
+          docker stop vue-deploy || true
+          docker rm vue-deploy || true
+          docker run -d --name vue-deploy -p 4173:4173 ${{ secrets.DOCKER_HUB_USERNAME }}/vue-deploy:latest
+          
+  restart:
+    if: ${{ github.event.inputs.command == 'restart' }}
+    runs-on: self-hosted
+    steps:
+      - name: restart docker container
+        run: |
+          docker restart vue-deploy || true
